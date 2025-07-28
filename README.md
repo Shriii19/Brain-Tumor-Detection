@@ -48,9 +48,10 @@ Brain Tumor Detection/
 
 ### Installation Steps
 
-1. **Clone or download the project**
+1. **Clone the repository**
    ```bash
-   cd "Brain Tumor Detection"
+   git clone https://github.com/Shriii19/Brain-Tumor-Detection.git
+   cd Brain-Tumor-Detection
    ```
 
 2. **Install required packages**
@@ -63,12 +64,21 @@ Brain Tumor Detection/
    pip install -r requirements.txt
    ```
 
-3. **Run the application**
+3. **Model File Setup**
+   
+   ⚠️ **Important**: The `model.h5` file is not included in this repository due to GitHub's file size limits (122MB > 100MB limit).
+   
+   **Options:**
+   - **Option A**: If you have the model file, place it in the root directory as `model.h5`
+   - **Option B**: The app will run in demo mode without the model (showing placeholder predictions)
+   - **Option C**: Train your own model using the included Jupyter notebook
+
+4. **Run the application**
    ```bash
    python main.py
    ```
 
-4. **Access the web interface**
+5. **Access the web interface**
    Open your browser and navigate to: `http://127.0.0.1:5000`
 
 ## Usage
@@ -80,13 +90,6 @@ Brain Tumor Detection/
    - Confidence percentage
    - Uploaded image preview
 
-## Model Information
-
-- **Architecture**: Convolutional Neural Network (CNN)
-- **Input Size**: 128x128 pixels
-- **Image Format**: Supports common formats (JPG, PNG, etc.)
-- **Classes**: 4 categories (Glioma, Meningioma, Pituitary, No Tumor)
-
 ## Current Status
 
 ✅ **Working Components:**
@@ -94,11 +97,22 @@ Brain Tumor Detection/
 - File upload functionality
 - Web interface
 - Image processing pipeline
+- Sample MRI images
+- Complete documentation
 
 ⚠️ **Known Issues:**
-- Model compatibility issue with current TensorFlow version
-- Currently running in demo mode
-- Predictions show placeholder results until model is updated
+- Model file (`model.h5`) not included due to GitHub file size limits
+- Currently running in demo mode (shows "Model not loaded - demo mode")
+- Predictions show placeholder results until model is added
+
+## Model Information
+
+- **File**: `model.h5` (122MB - excluded from repository)
+- **Architecture**: Convolutional Neural Network (CNN)
+- **Input Size**: 128x128 pixels
+- **Image Format**: Supports common formats (JPG, PNG, etc.)
+- **Classes**: 4 categories (Glioma, Meningioma, Pituitary, No Tumor)
+- **Status**: Compatible with older TensorFlow versions (may need updating for current TF versions)
 
 ## Troubleshooting
 

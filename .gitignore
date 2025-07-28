@@ -1,0 +1,31 @@
+# Large model file - add separately with instructions
+model.h5
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Uploaded files (local testing)
+uploads/*.jpg
+uploads/*.png
+uploads/*.jpeg
+!uploads/Te-*.jpg

@@ -1,8 +1,13 @@
 from flask import Flask, render_template, request, send_from_directory, jsonify, flash
-import tensorflow as tf
-from tensorflow.keras.models import load_model
-from tensorflow.keras.utils import load_img, img_to_array
-import numpy as np
+try:
+    import tensorflow as tf
+    from tensorflow.keras.models import load_model
+    from tensorflow.keras.utils import load_img, img_to_array
+    import numpy as np
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    TENSORFLOW_AVAILABLE = False
+    print("TensorFlow not available - running in demo mode")
 import os
 import uuid
 import logging
@@ -104,7 +109,7 @@ def log_analysis(analysis_id, filename, result, confidence):
 def predict_tumor(image_path, analysis_id):
     """Enhanced tumor prediction with detailed results"""
     try:
-        if model is None:
+        if model is None or not TENSORFLOW_AVAILABLE:
             # Demo mode - simulate realistic predictions
             import random
             
@@ -135,11 +140,15 @@ def predict_tumor(image_path, analysis_id):
         IMAGE_SIZE = 128
         img = load_img(image_path, target_size=(IMAGE_SIZE, IMAGE_SIZE))
         img_array = img_to_array(img) / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
+        if TENSORFLOW_AVAILABLE:
+            import numpy as np
+            img_array = np.expand_dims(img_array, axis=0)
 
         predictions = model.predict(img_array)
-        predicted_class_index = np.argmax(predictions, axis=1)[0]
-        confidence_score = np.max(predictions, axis=1)[0]
+        if TENSORFLOW_AVAILABLE:
+            import numpy as np
+            predicted_class_index = np.argmax(predictions, axis=1)[0]
+            confidence_score = np.max(predictions, axis=1)[0]
         
         predicted_type = list(class_labels.keys())[predicted_class_index]
         

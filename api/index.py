@@ -7,8 +7,9 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 import json
 
-# Initialize Flask app
-app = Flask(__name__, template_folder='../templates', static_folder='../uploads')
+# Initialize Flask app with correct paths for Vercel
+app = Flask(__name__)
+app.template_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates')
 app.secret_key = 'neuroscan_pro_2025_secure_key'
 app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024  # 25MB max file size
 
@@ -19,12 +20,18 @@ logger = logging.getLogger(__name__)
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'dcm'}
 
-# Define the uploads folder
+# Define the uploads folder - use /tmp for Vercel serverless
 UPLOAD_FOLDER = '/tmp/uploads'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+try:
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+        logger.info(f"Created upload folder: {UPLOAD_FOLDER}")
+except Exception as e:
+    logger.error(f"Error creating upload folder: {str(e)}")
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+logger.info(f"Template folder: {app.template_folder}")
+logger.info(f"Upload folder: {UPLOAD_FOLDER}")
 
 # Enhanced class labels with medical descriptions
 class_labels = {
@@ -239,7 +246,18 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
-        'version': '1.0.0'
+        'version': '1.0.0',
+        'template_folder': app.template_folder,
+        'upload_folder': app.config['UPLOAD_FOLDER']
+    })
+
+@app.route('/test')
+def test():
+    """Simple test endpoint"""
+    return jsonify({
+        'message': 'Flask app is working!',
+        'template_folder': app.template_folder,
+        'templates_exist': os.path.exists(app.template_folder)
     })
 
 # Route to serve uploaded files
@@ -269,7 +287,6 @@ def internal_error(e):
     logger.error(f"Internal server error: {str(e)}")
     return render_template('index.html', error='Internal server error'), 500
 
-# Vercel serverless entry point
-def handler(request):
-    """Serverless handler for Vercel"""
-    return app(request)
+# For local development
+if __name__ == '__main__':
+    app.run(debug=True)

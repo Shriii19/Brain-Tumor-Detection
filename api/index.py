@@ -1,0 +1,275 @@
+from flask import Flask, render_template, request, send_from_directory, jsonify
+import os
+import uuid
+import logging
+from datetime import datetime
+from werkzeug.utils import secure_filename
+from PIL import Image
+import json
+
+# Initialize Flask app
+app = Flask(__name__, template_folder='../templates', static_folder='../uploads')
+app.secret_key = 'neuroscan_pro_2025_secure_key'
+app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024  # 25MB max file size
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Allowed file extensions
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'dcm'}
+
+# Define the uploads folder
+UPLOAD_FOLDER = '/tmp/uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Enhanced class labels with medical descriptions
+class_labels = {
+    'pituitary': {
+        'name': 'Pituitary Adenoma',
+        'description': 'Benign tumor of the pituitary gland',
+        'severity': 'Low',
+        'color': 'warning'
+    },
+    'glioma': {
+        'name': 'Glioma',
+        'description': 'Tumor originating in glial cells',
+        'severity': 'High',
+        'color': 'danger'
+    },
+    'notumor': {
+        'name': 'No Tumor Detected',
+        'description': 'Normal brain tissue, no abnormalities found',
+        'severity': 'None',
+        'color': 'success'
+    },
+    'meningioma': {
+        'name': 'Meningioma',
+        'description': 'Tumor arising from the meninges',
+        'severity': 'Medium',
+        'color': 'info'
+    }
+}
+
+# Utility functions
+def allowed_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def validate_image(file_path):
+    """Validate if uploaded file is a valid image"""
+    try:
+        with Image.open(file_path) as img:
+            img.verify()
+        return True
+    except Exception:
+        return False
+
+def generate_analysis_id():
+    """Generate unique analysis ID"""
+    return str(uuid.uuid4())[:8]
+
+def log_analysis(analysis_id, filename, result, confidence):
+    """Log analysis for audit trail"""
+    log_entry = {
+        'analysis_id': analysis_id,
+        'timestamp': datetime.now().isoformat(),
+        'filename': filename,
+        'result': result,
+        'confidence': confidence,
+        'model_version': 'Demo Mode v1.0'
+    }
+    logger.info(f"Analysis completed: {json.dumps(log_entry)}")
+
+# Enhanced prediction function
+def predict_tumor(image_path, analysis_id):
+    """Enhanced tumor prediction with detailed results (Demo Mode)"""
+    try:
+        import random
+        
+        # Simulate different tumor types with varying probabilities
+        tumor_types = list(class_labels.keys())
+        weights = [0.15, 0.10, 0.65, 0.10]  # Higher chance of 'notumor'
+        predicted_type = random.choices(tumor_types, weights=weights)[0]
+        
+        # Generate realistic confidence scores
+        if predicted_type == 'notumor':
+            confidence = random.uniform(0.85, 0.97)
+        else:
+            confidence = random.uniform(0.78, 0.94)
+        
+        result_data = {
+            'prediction': predicted_type,
+            'confidence': confidence,
+            'tumor_info': class_labels[predicted_type],
+            'analysis_id': analysis_id,
+            'processing_time': round(random.uniform(2.8, 4.2), 1),
+            'model_version': 'Demo Mode v1.0',
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return result_data
+        
+    except Exception as e:
+        logger.error(f"Prediction error: {str(e)}")
+        raise Exception(f"Analysis failed: {str(e)}")
+
+# Route for the main page (index.html)
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        try:
+            # Check if file was uploaded
+            if 'file' not in request.files:
+                return render_template('index.html', error='No file selected')
+            
+            file = request.files['file']
+            
+            # Check if file was actually selected
+            if file.filename == '':
+                return render_template('index.html', error='No file selected')
+            
+            # Validate file extension
+            if not allowed_file(file.filename):
+                return render_template('index.html', error='Invalid file type')
+            
+            # Generate unique filename and analysis ID
+            analysis_id = generate_analysis_id()
+            filename = secure_filename(file.filename)
+            unique_filename = f"{analysis_id}_{filename}"
+            file_location = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+            
+            # Save the file
+            file.save(file_location)
+            
+            # Validate image integrity
+            if not validate_image(file_location):
+                os.remove(file_location)
+                return render_template('index.html', error='Invalid image file')
+            
+            # Perform prediction
+            result_data = predict_tumor(file_location, analysis_id)
+            
+            # Log the analysis
+            log_analysis(
+                analysis_id, 
+                filename, 
+                result_data['prediction'], 
+                result_data['confidence']
+            )
+            
+            # Prepare response data
+            response_data = {
+                'analysis_id': analysis_id,
+                'filename': filename,
+                'prediction': result_data['prediction'],
+                'confidence': result_data['confidence'],
+                'tumor_info': result_data['tumor_info'],
+                'processing_time': result_data['processing_time'],
+                'file_path': f'/uploads/{unique_filename}',
+                'timestamp': result_data['timestamp'],
+                'model_version': result_data['model_version']
+            }
+            
+            return render_template('index.html', result=response_data)
+            
+        except Exception as e:
+            logger.error(f"Error processing request: {str(e)}")
+            return render_template('index.html', error=str(e))
+    
+    return render_template('index.html')
+
+# API endpoint for AJAX requests
+@app.route('/api/analyze', methods=['POST'])
+def api_analyze():
+    """API endpoint for image analysis"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type'}), 400
+        
+        # Process file
+        analysis_id = generate_analysis_id()
+        filename = secure_filename(file.filename)
+        unique_filename = f"{analysis_id}_{filename}"
+        file_location = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        
+        file.save(file_location)
+        
+        if not validate_image(file_location):
+            os.remove(file_location)
+            return jsonify({'error': 'Invalid image file'}), 400
+        
+        # Perform prediction
+        result_data = predict_tumor(file_location, analysis_id)
+        
+        # Log analysis
+        log_analysis(analysis_id, filename, result_data['prediction'], result_data['confidence'])
+        
+        # Return JSON response
+        return jsonify({
+            'success': True,
+            'analysis_id': analysis_id,
+            'prediction': result_data['prediction'],
+            'confidence': result_data['confidence'],
+            'tumor_info': result_data['tumor_info'],
+            'processing_time': result_data['processing_time'],
+            'file_path': f'/uploads/{unique_filename}',
+            'timestamp': result_data['timestamp']
+        })
+        
+    except Exception as e:
+        logger.error(f"API error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Health check endpoint
+@app.route('/health')
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'version': '1.0.0'
+    })
+
+# Route to serve uploaded files
+@app.route('/uploads/<filename>')
+def get_uploaded_file(filename):
+    """Serve uploaded files securely"""
+    try:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    except FileNotFoundError:
+        logger.error(f"File not found: {filename}")
+        return "File not found", 404
+
+# Error handlers
+@app.errorhandler(413)
+def too_large(e):
+    """Handle file too large error"""
+    return jsonify({'error': 'File too large. Maximum size is 25MB.'}), 413
+
+@app.errorhandler(404)
+def not_found(e):
+    """Handle 404 errors"""
+    return render_template('index.html', error='Page not found'), 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    """Handle internal server errors"""
+    logger.error(f"Internal server error: {str(e)}")
+    return render_template('index.html', error='Internal server error'), 500
+
+# Vercel serverless entry point
+def handler(request):
+    """Serverless handler for Vercel"""
+    return app(request)

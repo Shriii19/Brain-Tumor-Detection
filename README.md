@@ -157,7 +157,7 @@ python main.py
 
 ## 🌐 Live Demo
 
-**Deployed Version**: [Your-App-Name.vercel.app](https://your-app-name.vercel.app)
+**Deployed Version**: https://neuroscan.nexly.store/
 
 *Note: Demo mode runs simulated predictions. For production use with real AI model, see deployment guide.*
 
